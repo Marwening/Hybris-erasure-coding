@@ -117,15 +117,17 @@ public class Metadata implements KryoSerializable {
 
     private Timestamp ts;
     private byte[] hash;
+    private ArrayList<String> keylist;
     private byte[] cryptoKey;
     private int size;
     private List<Kvs> replicasLst;
 
     public Metadata() { }
-    public Metadata(Timestamp ts, byte[] hash, int size,
+    public Metadata(Timestamp ts, byte[] hash, int size, ArrayList<String> keylist,
             List<Kvs> replicas, byte[] cryptoKeyIV) {
         this.ts = ts;
         this.hash = hash;
+        this.keylist = keylist;
         this.size = size;
         this.replicasLst = replicas;
         this.cryptoKey = cryptoKeyIV;
@@ -141,12 +143,13 @@ public class Metadata implements KryoSerializable {
         this.ts = md.getTs();
         this.replicasLst = md.getReplicasLst();
         this.hash = md.getHash();
+        this.keylist = md.getkeylist();
         this.cryptoKey = md.getCryptoKey();
         this.size = md.getSize();
     }
 
     public static Metadata getTombstone(Timestamp ts) {
-        return new Metadata(ts, null, 0, null, null);
+        return new Metadata(ts, null, 0,null, null, null);
     }
 
     public byte[] serialize() {
@@ -162,6 +165,7 @@ public class Metadata implements KryoSerializable {
 
     public boolean isTombstone() {
         return this.hash == null &&
+        		this.keylist == null &&
                 this.replicasLst == null &&
                 this.size == 0 &&
                 this.cryptoKey == null;
@@ -173,6 +177,7 @@ public class Metadata implements KryoSerializable {
     public void setReplicasLst(List<Kvs> replicasLst) { this.replicasLst = replicasLst; }
     public byte[] getHash() { return this.hash; }
     public void setHash(byte[] hash) { this.hash = hash; }
+    public ArrayList<String> getkeylist() { return this.keylist; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
     public byte[] getCryptoKey() { return this.cryptoKey; }

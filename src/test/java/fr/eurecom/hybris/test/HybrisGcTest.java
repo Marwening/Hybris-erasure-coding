@@ -34,6 +34,7 @@ import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.KvsManager;
+import fr.eurecom.hybris.kvs.KvsManager.KvsPutWorker;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.mds.MdsManager;
 import fr.eurecom.hybris.mds.MdsManager.GcMarker;
@@ -124,9 +125,9 @@ public class HybrisGcTest extends HybrisAbstractTest {
         savedReplicas.add(this.kvs.getKvsList().get(0));
         savedReplicas.add(this.kvs.getKvsList().get(1));
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
-        this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
-
-        GcMarker gcm = this.mds.new GcMarker(key3, ts, savedReplicas);
+        this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);      
+        ArrayList<String> keylist=Utils.ercode(value6, key3);
+		GcMarker gcm = this.mds.new GcMarker(key3, ts, keylist, savedReplicas);
         gcm.start();
         gcm.join();
 
@@ -190,11 +191,31 @@ public class HybrisGcTest extends HybrisAbstractTest {
         savedReplicas.add(this.kvs.getKvsList().get(1));
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
         this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
-
-        GcMarker gcm = this.mds.new GcMarker(key3, ts, savedReplicas);
+        ArrayList<String> keylist = Utils.ercode(value6, key3);
+		GcMarker gcm = this.mds.new GcMarker(key3, ts, keylist, savedReplicas);
         gcm.start();
         gcm.join();
+        
+        
+        // make a put test
+        
+        List<Kvs> savedReplicas1 = new ArrayList<Kvs>();
+        savedReplicas1.add(this.kvs.getKvsList().get(0));
+        savedReplicas1.add(this.kvs.getKvsList().get(1));
+        savedReplicas1.add(this.kvs.getKvsList().get(2));
 
+        ArrayList<String> keylist1 = Utils.ercode(value6, key3);
+    	for (Kvs kvStore : savedReplicas)
+        	for (String Alfa : keylist1)
+        		if (keylist1.indexOf(Alfa)==savedReplicas.indexOf(kvStore))
+        			this.kvs.put(savedReplicas1.get(savedReplicas.indexOf(kvStore)), Utils.getKvsKey(Alfa, ts), Utils.keytovalue(Alfa));
+        
+        
+        
+        
+        
+        
+        
         // batchGc
         this.hybris.new GcManager().batchGc();
 

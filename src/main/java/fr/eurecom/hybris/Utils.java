@@ -16,6 +16,8 @@
 package fr.eurecom.hybris;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
@@ -24,10 +26,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -37,6 +42,10 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
+import target.classes.de.uni_postdam.hpi.jerasure.*;
+import target.classes.de.uni_postdam.hpi.jerasure.Encoder;
+
+
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
@@ -44,12 +53,25 @@ public class Utils {
     /** length of hash digest */
     public final static int HASH_LENGTH = 20;
 
+    /** number of data chunks */
+    public final static int DATACHUNKS = 2;
+    
+    /** number of Redundancy chunks */
+    public final static int REDCHUNKS = 1;    
+    
+    /** Length of Redundancy words */
+    public final static int WORDS_LENGTH = 8;  
+    
     /** length of cryptographic key (16,24,32) */
     public final static int CRYPTO_KEY_LENGTH = 16;
 
+    /** erasure coding algorithm */
+    private final static String ERASURE_CODING = "JERASURE";
+    
     /** KVS key separator */
     private final static String KVS_KEY_SEPARATOR = "#";
 
+    
     /** encryption algorithm */
     private final static String ENC_ALGORITHM = "AES";
     private final static String ENC_ALGORITHM_MODE = "AES/CFB/NoPadding";
@@ -204,4 +226,84 @@ public class Utils {
 
         return output;
     }
+
+
+/* -------------------------------------- Encode / decode functions -------------------------------------- */
+
+/**
+ * Encoding the given value into several shunks.
+ * @param Value
+ * @param String key
+ * @return ArrayList<String> keylist
+ */
+	@SuppressWarnings("resource")
+	public static ArrayList<String> ercode(byte[] value, String key) {
+
+		String fichier;
+		System.out.println(ERASURE_CODING + "en cours");
+		Encoder encoder = new Encoder(DATACHUNKS,REDCHUNKS, WORDS_LENGTH);
+		ArrayList<String> keyi=null ;
+		//key should be a local address
+		keyi = encoder.encode(new File(fichier= key));
+		return keyi;
+	}
+	//After recuprating  
+	public static byte[] dercode(ArrayList<byte[]> values, ArrayList<String> keylist, String key, int Sizy) {
+		
+		for (String Sigma : keylist)
+        	for (byte[] Gama : values)
+        		if (keylist.indexOf(Sigma)==values.indexOf(Gama))
+					try {
+						Utils.valueonkeys(Gama,Sigma);
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+		
+		Decoder decoder = new Decoder(new File(key), DATACHUNKS, REDCHUNKS, WORDS_LENGTH);
+        decoder.decode(Sizy);
+		byte[] value = null;
+		try {
+			value = keytovalue(key);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return value;
+	}
+	/* -------------------------------------- key to value functions -------------------------------------- */
+
+	/**
+	 * Getting the value from a given key.
+	 * @param String key
+	 * @return byte[] value
+	 * @throws IOException 
+	 */
+		public static byte[] keytovalue(String alfa) throws IOException {
+			byte[] values = null;
+			try{
+					values = Files.readAllBytes(Paths.get(alfa));
+					
+
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+			return values;
+		
+	}
+		/* -------------------------------------- values on key functions -------------------------------------- */
+	/**
+	 * Putting a value on a key.
+	 * @param byte[] value
+	 * @return String key
+	 * @throws IOException 
+	 */
+		
+		public static void valueonkeys(byte [] value,String keyi) throws IOException {
+		    FileOutputStream fos = new FileOutputStream(keyi);
+		    fos.write(value);
+		    fos.close();
+	}
+		
+		
 }

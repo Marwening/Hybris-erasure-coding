@@ -16,6 +16,7 @@
 package fr.eurecom.hybris.mds;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -112,14 +113,16 @@ public class MdsManager implements ConnectionStateListener {
     public class GcMarker extends Thread {
 
         private final String key;
+        private ArrayList<String> keylist;
         private Timestamp ts;
         private List<Kvs> replicas;
         private final GcType type;
 
-        public GcMarker(String key, Timestamp ts,
+        public GcMarker(String key, Timestamp ts, ArrayList<String> keylist,
                 List<Kvs> savedReplicas) {
             this.key = key;
             this.ts = ts;
+            this.keylist = keylist;
             this.replicas = savedReplicas;
             this.type = GcType.ORPHAN;
         }
@@ -150,7 +153,7 @@ public class MdsManager implements ConnectionStateListener {
                 case ORPHAN:
                     // create ZNode <root>-gc/orphans/<KvsKey>
                     path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
-                    byte[] value = new Metadata(this.ts, null, 0, this.replicas, null).serialize();
+                    byte[] value = new Metadata(this.ts, null, 0, this.keylist, this.replicas, null).serialize();
                     try {
                         MdsManager.this.zkCli.create().forPath(path, value);
                         logger.debug("GcMarker: marked {} as orphan", path);
