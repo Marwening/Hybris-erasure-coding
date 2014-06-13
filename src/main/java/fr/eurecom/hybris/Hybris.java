@@ -203,9 +203,11 @@ public class Hybris {
      * @param value
      * @return the list of Kvs in which Hybris stored the data
      * @throws HybrisException
+     * @throws IOException 
      */
-    public List<Kvs> put(String key, byte[] value) throws HybrisException {
-    	ArrayList<String> keylist = Utils.ercode(value, key);
+    public List<Kvs> put(String key, byte[] value) throws HybrisException, IOException {
+//    	ArrayList<String> keylist = Utils.ercode(value, key);
+//    	System.out.println("the keylist is"+keylist);
         Timestamp ts;
         Stat stat = new Stat();
         Metadata md = this.mds.tsRead(key, stat);
@@ -238,6 +240,7 @@ public class Hybris {
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         
         String kvsKey = Utils.getKvsKey(key, ts);
+    	ArrayList<String> keylist = Utils.ercode(value, key);
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
         CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
         int idxFrom = 0; int idxTo = this.quorum; long start; Future<Kvs> future;
@@ -245,6 +248,7 @@ public class Hybris {
             List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
             start = System.currentTimeMillis();
             for (Kvs kvStore : kvsSublst)
+            	//change
             	for (String Alfa : keylist)
             		if (keylist.indexOf(Alfa)==kvsSublst.indexOf(kvStore)) {
 						try {
@@ -289,6 +293,8 @@ public class Hybris {
         boolean overwritten = false;
         try {
             Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, Utils.ercode(value, key), savedReplicasLst, cryptoKey);
+            System.out.println("just created Metadata"+ newMd);
+            System.out.println("keylist is " +Utils.ercode(value, key));
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedReplicasLst).start();
@@ -308,12 +314,16 @@ public class Hybris {
      * @param key
      * @return a byte array containing the value associated with <key>.
      * @throws HybrisException
+     * @throws IOException 
      */
-    public byte[] get(String key) throws HybrisException {   	
+    @SuppressWarnings("null")
+	public byte[] get(String key) throws HybrisException, IOException {   	
      	
-    	ArrayList<String> keylist=Utils.ercode(null, key);
+    	//ArrayList<String> keylist=Utils.ercode(null, key);
     	ArrayList<byte[]> values = null;
         Metadata md = this.mds.tsRead(key, null);
+        ArrayList<String> keylist = md.getkeylist();
+       // System.out.println("there is the keylist "+ keylist);
         if (md == null || md.isTombstone()) {
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
@@ -392,8 +402,9 @@ public class Hybris {
      * @param key
      * @return a byte array containing the value associated with <key>.
      * @throws HybrisException
+     * @throws IOException 
      */
-    private byte[] parallelGet(String key) throws HybrisException {
+    private byte[] parallelGet(String key) throws HybrisException, IOException {
 
         HybrisWatcher hwatcher = this.new HybrisWatcher();
         Metadata md = this.mds.tsRead(key, null, hwatcher);

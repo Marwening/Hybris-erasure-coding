@@ -18,6 +18,7 @@ package fr.eurecom.hybris.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNull;
 
+import java.io.IOException;
 import java.math.BigInteger;
 
 import org.apache.curator.test.TestingServer;
@@ -48,7 +49,7 @@ public class HybrisTest extends HybrisAbstractTest {
     public void tearDown() throws Exception {  }
 
     @Test
-    public void testBasicWriteAndRead() throws HybrisException {
+    public void testBasicWriteAndRead() throws HybrisException, IOException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new byte[50];
@@ -96,7 +97,7 @@ public class HybrisTest extends HybrisAbstractTest {
 
     @Ignore
     @Test
-    public void testLargeFiles() throws HybrisException {
+    public void testLargeFiles() throws HybrisException, IOException {
         byte[] payload = this.generatePayload(50000000, (byte) 'x');
         String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
 

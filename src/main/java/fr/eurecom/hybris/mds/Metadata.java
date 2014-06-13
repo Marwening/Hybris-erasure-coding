@@ -184,7 +184,7 @@ public class Metadata implements KryoSerializable {
 
     public String toString() {
         return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
-                + ", size=" + this.size + ", replicasLst=" + this.replicasLst
+                + ", size=" + this.size + ", replicasLst=" + this.replicasLst +", keylist ="+ this.keylist
                 + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
     }
 

@@ -105,8 +105,9 @@ public class KvsManager {
         String accessKey, secretKey;
         boolean enabled;
         int cost;
-
+        int i = 0;
         for (String accountId : accountIds) {
+        	i++;
             accessKey = this.conf.getAccountsProperty( String.format(Config.C_AKEY, accountId));
             secretKey = this.conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) );
             enabled = Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
@@ -131,7 +132,7 @@ public class KvsManager {
                                 container, enabled, cost);
                         break;
                     case TRANSIENT:
-                        kvStore = new TransientKvs(accountId, accessKey, secretKey,
+                        kvStore = new TransientKvs(accountId+i, accessKey, secretKey,
                                 container, enabled, cost);
                         break;
                     default:

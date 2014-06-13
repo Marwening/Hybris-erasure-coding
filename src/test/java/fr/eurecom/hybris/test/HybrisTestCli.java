@@ -120,7 +120,7 @@ public class HybrisTestCli implements Runnable {
         this.hybris.shutdown();
     }
 
-    private void write(String key, byte[] value) {
+    private void write(String key, byte[] value) throws IOException {
         try {
             this.hybris.put(key, value);
         } catch (HybrisException e) {
@@ -128,7 +128,7 @@ public class HybrisTestCli implements Runnable {
         }
     }
 
-    private byte[] read(String key) {
+    private byte[] read(String key) throws IOException {
         try {
             return this.hybris.get(key);
         } catch (HybrisException e) {

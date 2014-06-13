@@ -17,6 +17,7 @@ package fr.eurecom.hybris;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -43,7 +44,6 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 import target.classes.de.uni_postdam.hpi.jerasure.*;
-import target.classes.de.uni_postdam.hpi.jerasure.Encoder;
 
 
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
@@ -235,16 +235,15 @@ public class Utils {
  * @param Value
  * @param String key
  * @return ArrayList<String> keylist
+ * @throws IOException 
  */
 	@SuppressWarnings("resource")
-	public static ArrayList<String> ercode(byte[] value, String key) {
+	public static ArrayList<String> ercode(byte[] value, String key) throws IOException {
 
-		String fichier;
-		System.out.println(ERASURE_CODING + "en cours");
 		Encoder encoder = new Encoder(DATACHUNKS,REDCHUNKS, WORDS_LENGTH);
-		ArrayList<String> keyi=null ;
-		//key should be a local address
-		keyi = encoder.encode(new File(fichier= key));
+		valueonkeys(value,key);
+		ArrayList<String> keyi= null;
+        keyi = encoder.encode(new File(key));
 		return keyi;
 	}
 	//After recuprating  
