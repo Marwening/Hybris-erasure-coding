@@ -116,20 +116,20 @@ public class Metadata implements KryoSerializable {
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private Timestamp ts;
-    private byte[] hash;
+    private ArrayList<byte[]> hash;
     private ArrayList<String> keylist;
     private byte[] cryptoKey;
     private int size;
-    private List<Kvs> replicasLst;
+    private List<Kvs> chunksLst;
 
     public Metadata() { }
-    public Metadata(Timestamp ts, byte[] hash, int size, ArrayList<String> keylist,
-            List<Kvs> replicas, byte[] cryptoKeyIV) {
+    public Metadata(Timestamp ts, ArrayList<byte[]> hash, int size, ArrayList<String> keylist,
+            List<Kvs> chunks, byte[] cryptoKeyIV) {
         this.ts = ts;
         this.hash = hash;
         this.keylist = keylist;
         this.size = size;
-        this.replicasLst = replicas;
+        this.chunksLst = chunks;
         this.cryptoKey = cryptoKeyIV;
     }
 
@@ -141,7 +141,7 @@ public class Metadata implements KryoSerializable {
         Metadata md = kryo.readObject(input, Metadata.class);
         input.close();
         this.ts = md.getTs();
-        this.replicasLst = md.getReplicasLst();
+        this.chunksLst = md.getChunksLst();
         this.hash = md.getHash();
         this.keylist = md.getkeylist();
         this.cryptoKey = md.getCryptoKey();
@@ -166,17 +166,17 @@ public class Metadata implements KryoSerializable {
     public boolean isTombstone() {
         return this.hash == null &&
         		this.keylist == null &&
-                this.replicasLst == null &&
+                this.chunksLst == null &&
                 this.size == 0 &&
                 this.cryptoKey == null;
     }
 
     public Timestamp getTs() { return this.ts; }
     public void setTs(Timestamp ts) { this.ts = ts;    }
-    public List<Kvs> getReplicasLst() { return this.replicasLst; }
-    public void setReplicasLst(List<Kvs> replicasLst) { this.replicasLst = replicasLst; }
-    public byte[] getHash() { return this.hash; }
-    public void setHash(byte[] hash) { this.hash = hash; }
+    public List<Kvs> getChunksLst() { return this.chunksLst; }
+    public void setChunksLst(List<Kvs> chunksLst) { this.chunksLst = chunksLst; }
+    public ArrayList<byte[]> getHash() { return this.hash; }
+    public void setHash(ArrayList<byte[]> hash) { this.hash = hash; }
     public ArrayList<String> getkeylist() { return this.keylist; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
@@ -184,7 +184,7 @@ public class Metadata implements KryoSerializable {
 
     public String toString() {
         return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
-                + ", size=" + this.size + ", replicasLst=" + this.replicasLst +", keylist ="+ this.keylist
+                + ", size=" + this.size + ", replicasLst=" + this.chunksLst +", keylist ="+ this.keylist
                 + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
     }
 
@@ -192,9 +192,11 @@ public class Metadata implements KryoSerializable {
         final int prime = 31;
         int result = 1;
         result = prime * result + Arrays.hashCode(this.cryptoKey);
-        result = prime * result + Arrays.hashCode(this.hash);
+        for (byte[] alfa : this.hash)
+            result = prime * result + Arrays.hashCode(alfa);        	
+      //  result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
-                + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
+                + (this.chunksLst == null ? 0 : this.chunksLst.hashCode());
         result = prime * result + this.size;
         result = prime * result + (this.ts == null ? 0 : this.ts.hashCode());
         return result;
@@ -210,12 +212,13 @@ public class Metadata implements KryoSerializable {
         Metadata other = (Metadata) obj;
         if (!Arrays.equals(this.cryptoKey, other.cryptoKey))
             return false;
-        if (!Arrays.equals(this.hash, other.hash))
+        for (byte [] alfa : this.hash)
+         if (!Arrays.equals(alfa, other.hash.get(this.hash.indexOf(alfa))))
             return false;
-        if (this.replicasLst == null) {
-            if (other.replicasLst != null)
+        if (this.chunksLst == null) {
+            if (other.chunksLst != null)
                 return false;
-        } else if (!this.replicasLst.equals(other.replicasLst))
+        } else if (!this.chunksLst.equals(other.chunksLst))
             return false;
         if (this.size != other.size)
             return false;
@@ -235,7 +238,8 @@ public class Metadata implements KryoSerializable {
             Arrays.fill(ba, (byte) 0x0);
             out.write(ba);
         } else
-            out.write(this.hash);
+        	for (byte[] alfa : this.hash)
+            	out.write(alfa);
 
         if (this.cryptoKey == null){
             byte[] ba = new byte[Utils.CRYPTO_KEY_LENGTH];
@@ -246,14 +250,14 @@ public class Metadata implements KryoSerializable {
 
         out.writeInt(this.size);
 
-        if (this.replicasLst != null)
-            if (this.replicasLst.size() > 0)
-                for (int i=0; i<this.replicasLst.size(); i++)
+        if (this.chunksLst != null)
+            if (this.chunksLst.size() > 0)
+                for (int i=0; i<this.chunksLst.size(); i++)
                     try {
-                        out.writeShort( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
+                        out.writeShort( KvsId.valueOf( this.chunksLst.get(i).getId().toUpperCase() ).getSerial() );
                     } catch (IllegalArgumentException e) {
                         logger.error("Serialization of {} Kvs failed: Hybris could not find any suitable driver",
-                                this.replicasLst.get(i).getId().toUpperCase());
+                                this.chunksLst.get(i).getId().toUpperCase());
                     }
             else
                 out.writeShort(-1);     // empty replicas array
@@ -261,14 +265,17 @@ public class Metadata implements KryoSerializable {
             out.writeShort(-2);         // null replicas array
     }
 
-    public void read(Kryo kryo, Input in) {
+    @SuppressWarnings("unused")
+	public void read(Kryo kryo, Input in) {
         this.ts = (Timestamp) kryo.readClassAndObject(in);
-
-        this.hash = in.readBytes(Utils.HASH_LENGTH);
+        this.hash = new ArrayList<byte[]>(Utils.DATACHUNKS+Utils.REDCHUNKS);
+        for (byte[] alfa : this.hash)
+        	alfa = in.readBytes(Utils.HASH_LENGTH);
         byte[] ba = new byte[Utils.HASH_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
-        if (Arrays.equals(ba, this.hash))
-            this.hash = null;
+        for (byte[] alfa : this.hash)
+         if (Arrays.equals(ba, alfa))
+            alfa = null;
 
         this.cryptoKey = in.readBytes(Utils.CRYPTO_KEY_LENGTH);
         ba = new byte[Utils.CRYPTO_KEY_LENGTH];
@@ -278,7 +285,7 @@ public class Metadata implements KryoSerializable {
 
         this.size = in.readInt();
 
-        this.replicasLst = new ArrayList<Kvs>();
+        this.chunksLst = new ArrayList<Kvs>();
         while (true) {
             short rep;
             try {
@@ -289,26 +296,26 @@ public class Metadata implements KryoSerializable {
             if (rep == -1)          // empty replicas array
                 break;
             else if (rep == -2) {   // null replicas array
-                this.replicasLst = null;
+                this.chunksLst = null;
                 break;
             }
 
             try {
                 switch (KvsId.getIdFromSerial(rep)) {
                     case AMAZON:
-                        this.replicasLst.add(new Kvs(KvsId.AMAZON.toString(), null, false, 0));
+                        this.chunksLst.add(new Kvs(KvsId.AMAZON.toString(), null, false, 0));
                         break;
                     case AZURE:
-                        this.replicasLst.add(new Kvs(KvsId.AZURE.toString(), null, false, 0));
+                        this.chunksLst.add(new Kvs(KvsId.AZURE.toString(), null, false, 0));
                         break;
                     case GOOGLE:
-                        this.replicasLst.add(new Kvs(KvsId.GOOGLE.toString(), null, false, 0));
+                        this.chunksLst.add(new Kvs(KvsId.GOOGLE.toString(), null, false, 0));
                         break;
                     case RACKSPACE:
-                        this.replicasLst.add(new Kvs(KvsId.RACKSPACE.toString(), null, false, 0));
+                        this.chunksLst.add(new Kvs(KvsId.RACKSPACE.toString(), null, false, 0));
                         break;
                     case TRANSIENT:
-                        this.replicasLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
+                        this.chunksLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
                         break;
                     default:
                         break;

@@ -100,6 +100,16 @@ public class Utils {
         else
             return DatatypeConverter.printHexBinary(array);
     }
+    
+    public static String bytesToHexStr(ArrayList<byte[]> hash) {
+        String gama = new String();
+		if (hash == null)
+            return null;
+        else
+        	for (byte[] alfa : hash)         	
+        		gama = gama + DatatypeConverter.printHexBinary(alfa);
+        return gama;
+    }
 
     public static byte[] hexStrToBytes(String s) {
         if (s == null)

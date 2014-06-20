@@ -239,7 +239,7 @@ public class Hybris {
             }
         }
 
-        List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
+        List<Kvs> savedChunksLst = new ArrayList<Kvs>();
         
         String kvsKey = Utils.getKvsKey(key, ts);
     	ArrayList<String> keylist = Utils.ercode(value, key);
@@ -258,15 +258,15 @@ public class Hybris {
 						}
 						
                 
-            Kvs savedReplica = null;
+            Kvs savedChunk = null;
             for (int i=0; i<kvsSublst.size(); i++)
                 try {
                     future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
-                    if (future != null && (savedReplica = future.get()) != null) {
-                        logger.debug("Data stored on {}, {} ms", savedReplica,
+                    if (future != null && (savedChunk = future.get()) != null) {
+                        logger.debug("Data stored on {}, {} ms", savedChunk,
                                 System.currentTimeMillis() - start);
-                        savedReplicasLst.add(savedReplica);
-                        if (savedReplicasLst.size() >= this.quorum)
+                        savedChunksLst.add(savedChunk);
+                        if (savedChunksLst.size() >= this.quorum)
                             break;
                     }
                 } catch (InterruptedException | ExecutionException e) {
@@ -277,11 +277,11 @@ public class Hybris {
             idxTo = this.kvs.getKvsList().size() > idxTo + this.quorum ?
                     idxTo + this.quorum : this.kvs.getKvsList().size();
 
-        } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
+        } while (savedChunksLst.size() < this.quorum && idxFrom < idxTo);
         executor.shutdown();
 
-        if (savedReplicasLst.size() < this.quorum) {
-            if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedReplicasLst).start();
+        if (savedChunksLst.size() < this.quorum) {
+            if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedChunksLst).start();
             logger.warn("Could not store data in cloud stores for key {}.", key);
             throw new HybrisException("Could not store data in cloud stores");
         }
@@ -291,20 +291,23 @@ public class Hybris {
 
         boolean overwritten = false;
         try {
-            Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, Utils.ercode(value, key), savedReplicasLst, cryptoKey);
+        	ArrayList<byte[]> chunkhashed = new ArrayList<byte []> ();
+        	for (String Sigma : Utils.ercode(value, key)) 
+        		chunkhashed.add(Utils.getHash(Utils.keytovalue(Sigma)));        	;
+            Metadata newMd = new Metadata(ts, chunkhashed, value.length, Utils.ercode(value, key), savedChunksLst, cryptoKey);
             System.out.println("just created Metadata"+ newMd);
             System.out.println("keylist is " +Utils.ercode(value, key));
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
-            if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedReplicasLst).start();
+            if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedChunksLst).start();
             logger.warn("Could not store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Could not store the metadata on Zookeeper");
         }
 
         if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
 
-        logger.info("Data stored on: {}", savedReplicasLst);
-        return savedReplicasLst;
+        logger.info("Data stored on: {}", savedChunksLst);
+        return savedChunksLst;
     }
 
 
@@ -331,7 +334,7 @@ public class Hybris {
         String kvsKey = Utils.getKvsKey(key, md.getTs());
         if (this.cacheEnabled) {
             value = (byte[]) this.cache.get(kvsKey);
-            if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
+             if (value != null && Arrays.equals(md.getHash().get(0), Utils.getHash(value))) {
 
                 if (md.getCryptoKey() != null)
                     try {
@@ -350,7 +353,7 @@ public class Hybris {
         List<Kvs> kvsSublst;
 		for (Kvs kvStore : kvsSublst = this.kvs.getKvsSortedByWriteLatency()) {
 					
-                 if (!md.getReplicasLst().contains(kvStore))
+                 if (!md.getChunksLst().contains(kvStore))
                 continue;
  //keylist.get(kvsSublst.indexOf(kvStore))           
                  try {
@@ -361,7 +364,8 @@ public class Hybris {
              }
 
             if (value != null) {
-                if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+              for (byte[] alfa: md.getHash())	
+                if (Arrays.equals(alfa, Utils.getHash(value))) {
                     logger.info("Value of {} retrieved from kvStore {}", keylist.get(kvsSublst.indexOf(kvStore)), kvStore);
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                         this.cache.set(kvsKey, this.cacheExp, value);
@@ -418,15 +422,13 @@ public class Hybris {
         boolean keepRetrieving = true;
 
         List<Kvs> kvsSublst = this.kvs.getKvsSortedByReadLatency();
-        kvsSublst.retainAll(md.getReplicasLst());
+        kvsSublst.retainAll(md.getChunksLst());
         Future<byte[]>[] futuresArray = new Future[kvsSublst.size()];
         ArrayList<byte[]> values= null;
     	ArrayList<String> keylist=Utils.ercode(null, key);
         do {
         	for (Kvs kvStore : kvsSublst)
-            	for (String Alfa : keylist)
-            		if (keylist.indexOf(Alfa)==kvsSublst.indexOf(kvStore))
-               			futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, Alfa));
+                 			futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, keylist.get(kvsSublst.indexOf(kvStore))));
 
             for (int i=0; i<kvsSublst.size(); i++)
                 try {
@@ -438,7 +440,8 @@ public class Hybris {
 
                     futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
                     if (futureResult != null && (value = futureResult.get()) != null)
-                        if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+                       for (byte[] alfa : md.getHash())
+                        if (Arrays.equals(alfa, Utils.getHash(value))) {
 
                             if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                                 this.cache.set(kvsKey, this.cacheExp, value);
@@ -490,7 +493,7 @@ public class Hybris {
             String kvsKey = Utils.getKvsKey(key, md.getTs());
             for (Kvs kvStore : this.kvs.getKvsList()) {
 
-                if (!md.getReplicasLst().contains(kvStore))
+                if (!md.getChunksLst().contains(kvStore))
                     continue;
 
                 try {
@@ -593,7 +596,7 @@ public class Hybris {
 
                 for (Kvs kvStore : Hybris.this.kvs.getKvsList()) {
 
-                    if (!md.getReplicasLst().contains(kvStore))
+                    if (!md.getChunksLst().contains(kvStore))
                         continue;
 
                     try {
