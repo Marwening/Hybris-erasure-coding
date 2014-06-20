@@ -94,7 +94,7 @@ public class HybrisYcsbClient extends DB {
                 result.put(key, new ByteArrayByteIterator(value));
                 return 0;
             }
-        } catch (HybrisException e) {
+        } catch (HybrisException | IOException e) {
             e.printStackTrace();
             return 1;
         }
@@ -141,7 +141,7 @@ public class HybrisYcsbClient extends DB {
         try {
             this.hybris.put(key, baos.toByteArray());
             return 0;
-        } catch (HybrisException e) {
+        } catch (HybrisException | IOException e) {
             e.printStackTrace();
             return 1;
         }

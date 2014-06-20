@@ -208,6 +208,8 @@ public class Hybris {
     public List<Kvs> put(String key, byte[] value) throws HybrisException, IOException {
 //    	ArrayList<String> keylist = Utils.ercode(value, key);
 //    	System.out.println("the keylist is"+keylist);
+    	
+    	//here we have a metadata initiation then a state definition 
         Timestamp ts;
         Stat stat = new Stat();
         Metadata md = this.mds.tsRead(key, stat);
@@ -247,17 +249,14 @@ public class Hybris {
         do {
             List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
             start = System.currentTimeMillis();
-            for (Kvs kvStore : kvsSublst)
-            	//change
-            	for (String Alfa : keylist)
-            		if (keylist.indexOf(Alfa)==kvsSublst.indexOf(kvStore)) {
+            for (Kvs kvStore : kvsSublst)            
 						try {
-							compServ.submit(this.kvs.new KvsPutWorker(kvStore, Alfa, Utils.keytovalue(Alfa)));
+							compServ.submit(this.kvs.new KvsPutWorker(kvStore, keylist.get(kvsSublst.indexOf(kvStore)), Utils.keytovalue(keylist.get(kvsSublst.indexOf(kvStore)))));
 						} catch (IOException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
-						}
+						
                 
             Kvs savedReplica = null;
             for (int i=0; i<kvsSublst.size(); i++)
@@ -350,22 +349,20 @@ public class Hybris {
 
         List<Kvs> kvsSublst;
 		for (Kvs kvStore : kvsSublst = this.kvs.getKvsSortedByWriteLatency()) {
-        	for (String Alfa : keylist)
-        		if (keylist.indexOf(Alfa)==kvsSublst.indexOf(kvStore)) {
 					
                  if (!md.getReplicasLst().contains(kvStore))
                 continue;
-            
+ //keylist.get(kvsSublst.indexOf(kvStore))           
                  try {
                 // TODO check filesize to prevent DOS
-                values.add(this.kvs.get(kvStore, Alfa));
+                values.add(this.kvs.get(kvStore, keylist.get(kvsSublst.indexOf(kvStore))));
                 } catch (IOException e) {
                  continue;
              }
 
             if (value != null) {
                 if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
-                    logger.info("Value of {} retrieved from kvStore {}", Alfa, kvStore);
+                    logger.info("Value of {} retrieved from kvStore {}", keylist.get(kvsSublst.indexOf(kvStore)), kvStore);
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                         this.cache.set(kvsKey, this.cacheExp, value);
 
@@ -389,7 +386,7 @@ public class Hybris {
                  * b. concurrent gc
                  */
                 return this.parallelGet(key);
-        }
+        
 		}
         return this.parallelGet(key);
     }

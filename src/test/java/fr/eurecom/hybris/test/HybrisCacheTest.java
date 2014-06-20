@@ -153,7 +153,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     }
 
     @Test
-    public void testMemcachedNotAvailable() {
+    public void testMemcachedNotAvailable() throws IOException {
         try {
             hybris = new Hybris(zkTestingServer.getConnectString(), mdsRoot, accountsFile,
                     kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, "not valid:1234", 5000, "onwrite");
