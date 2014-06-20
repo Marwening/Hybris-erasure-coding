@@ -292,9 +292,10 @@ public class Hybris {
         boolean overwritten = false;
         try {
         	ArrayList<byte[]> chunkhashed = new ArrayList<byte []> ();
+        	byte[] valhashed = new byte[20];
         	for (String Sigma : Utils.ercode(value, key)) 
         		chunkhashed.add(Utils.getHash(Utils.keytovalue(Sigma)));        	;
-            Metadata newMd = new Metadata(ts, chunkhashed, value.length, Utils.ercode(value, key), savedChunksLst, cryptoKey);
+            Metadata newMd = new Metadata(ts, valhashed, chunkhashed, value.length, Utils.ercode(value, key), savedChunksLst, cryptoKey);
             System.out.println("just created Metadata"+ newMd);
             System.out.println("keylist is " +Utils.ercode(value, key));
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
@@ -334,7 +335,7 @@ public class Hybris {
         String kvsKey = Utils.getKvsKey(key, md.getTs());
         if (this.cacheEnabled) {
             value = (byte[]) this.cache.get(kvsKey);
-             if (value != null && Arrays.equals(md.getHash().get(0), Utils.getHash(value))) {
+             if (value != null && Arrays.equals(md.getHashlist().get(0), Utils.getHash(value))) {
 
                 if (md.getCryptoKey() != null)
                     try {
@@ -364,7 +365,7 @@ public class Hybris {
              }
 
             if (value != null) {
-              for (byte[] alfa: md.getHash())	
+              for (byte[] alfa: md.getHashlist())	
                 if (Arrays.equals(alfa, Utils.getHash(value))) {
                     logger.info("Value of {} retrieved from kvStore {}", keylist.get(kvsSublst.indexOf(kvStore)), kvStore);
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
@@ -440,7 +441,7 @@ public class Hybris {
 
                     futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
                     if (futureResult != null && (value = futureResult.get()) != null)
-                       for (byte[] alfa : md.getHash())
+                       for (byte[] alfa : md.getHashlist())
                         if (Arrays.equals(alfa, Utils.getHash(value))) {
 
                             if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))

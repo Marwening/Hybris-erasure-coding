@@ -116,17 +116,19 @@ public class Metadata implements KryoSerializable {
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private Timestamp ts;
-    private ArrayList<byte[]> hash;
+    private ArrayList<byte[]> hashlist;
+    private byte[] hash;
     private ArrayList<String> keylist;
     private byte[] cryptoKey;
     private int size;
     private List<Kvs> chunksLst;
 
     public Metadata() { }
-    public Metadata(Timestamp ts, ArrayList<byte[]> hash, int size, ArrayList<String> keylist,
+    public Metadata(Timestamp ts, byte[] hash ,ArrayList<byte[]> hashlist, int size, ArrayList<String> keylist,
             List<Kvs> chunks, byte[] cryptoKeyIV) {
         this.ts = ts;
         this.hash = hash;
+        this.hashlist = hashlist;
         this.keylist = keylist;
         this.size = size;
         this.chunksLst = chunks;
@@ -149,7 +151,7 @@ public class Metadata implements KryoSerializable {
     }
 
     public static Metadata getTombstone(Timestamp ts) {
-        return new Metadata(ts, null, 0,null, null, null);
+        return new Metadata(ts, null, null, 0,null, null, null);
     }
 
     public byte[] serialize() {
@@ -175,8 +177,10 @@ public class Metadata implements KryoSerializable {
     public void setTs(Timestamp ts) { this.ts = ts;    }
     public List<Kvs> getChunksLst() { return this.chunksLst; }
     public void setChunksLst(List<Kvs> chunksLst) { this.chunksLst = chunksLst; }
-    public ArrayList<byte[]> getHash() { return this.hash; }
-    public void setHash(ArrayList<byte[]> hash) { this.hash = hash; }
+    public ArrayList<byte[]> getHashlist() { return this.hashlist; }
+    public byte[] getHash() { return this.hash; }
+    public void setHashlist(ArrayList<byte[]> hashlist) { this.hashlist = hashlist; }
+    public void setHashlist(byte[] hash) { this.hash = hash; }
     public ArrayList<String> getkeylist() { return this.keylist; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
@@ -192,7 +196,7 @@ public class Metadata implements KryoSerializable {
         final int prime = 31;
         int result = 1;
         result = prime * result + Arrays.hashCode(this.cryptoKey);
-        for (byte[] alfa : this.hash)
+        for (byte[] alfa : this.hashlist)
             result = prime * result + Arrays.hashCode(alfa);        	
       //  result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
@@ -212,8 +216,8 @@ public class Metadata implements KryoSerializable {
         Metadata other = (Metadata) obj;
         if (!Arrays.equals(this.cryptoKey, other.cryptoKey))
             return false;
-        for (byte [] alfa : this.hash)
-         if (!Arrays.equals(alfa, other.hash.get(this.hash.indexOf(alfa))))
+        for (byte [] alfa : this.hashlist)
+         if (!Arrays.equals(alfa, other.hashlist.get(this.hashlist.indexOf(alfa))))
             return false;
         if (this.chunksLst == null) {
             if (other.chunksLst != null)
@@ -238,7 +242,7 @@ public class Metadata implements KryoSerializable {
             Arrays.fill(ba, (byte) 0x0);
             out.write(ba);
         } else
-        	for (byte[] alfa : this.hash)
+        	for (byte[] alfa : this.hashlist)
             	out.write(alfa);
 
         if (this.cryptoKey == null){
@@ -268,12 +272,12 @@ public class Metadata implements KryoSerializable {
     @SuppressWarnings("unused")
 	public void read(Kryo kryo, Input in) {
         this.ts = (Timestamp) kryo.readClassAndObject(in);
-        this.hash = new ArrayList<byte[]>(Utils.DATACHUNKS+Utils.REDCHUNKS);
-        for (byte[] alfa : this.hash)
+        this.hashlist = new ArrayList<byte[]>(Utils.DATACHUNKS+Utils.REDCHUNKS);
+        for (byte[] alfa : this.hashlist)
         	alfa = in.readBytes(Utils.HASH_LENGTH);
         byte[] ba = new byte[Utils.HASH_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
-        for (byte[] alfa : this.hash)
+        for (byte[] alfa : this.hashlist)
          if (Arrays.equals(ba, alfa))
             alfa = null;
 

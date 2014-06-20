@@ -59,7 +59,7 @@ public class MetadataTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
 
-		Metadata md = new Metadata(ts, hashlist, size, keylist, replicas, cryptoKey);
+		Metadata md = new Metadata(ts, hash ,hashlist, size, keylist, replicas, cryptoKey);
 
         byte[] serialized = md.serialize();
         assertNotNull(serialized);
@@ -80,7 +80,7 @@ public class MetadataTest extends HybrisAbstractTest {
         assertEquals(3, mddes.getChunksLst().size());
         assertArrayEquals(replicas.toArray(), mddes.getChunksLst().toArray());
         for (byte[] alfa : hashlist)
-        	assertArrayEquals(alfa, mddes.getHash().get(hashlist.indexOf(alfa)));
+        	assertArrayEquals(alfa, mddes.getHashlist().get(hashlist.indexOf(alfa)));
         assertEquals(size, mddes.getSize());
         assertEquals(ts, mddes.getTs());
     }
@@ -104,7 +104,7 @@ public class MetadataTest extends HybrisAbstractTest {
         // replica list == null
         List<Kvs> replicas = null;
         ArrayList<String> keylist=null;
-		Metadata md = new Metadata(ts, hashlist, size, keylist, replicas, cryptoKey);
+		Metadata md = new Metadata(ts, hash, hashlist, size, keylist, replicas, cryptoKey);
         byte[] serialized = md.serialize();
         assertNotNull(serialized);
         Metadata mddes = new Metadata(serialized);
@@ -113,7 +113,7 @@ public class MetadataTest extends HybrisAbstractTest {
         // replica list is empty
         replicas = new ArrayList<Kvs>();
         keylist = new ArrayList<String>();
-        md = new Metadata(ts, hashlist, size, keylist, replicas, cryptoKey);
+        md = new Metadata(ts, hash, hashlist, size, keylist, replicas, cryptoKey);
         serialized = md.serialize();
         assertNotNull(serialized);
         mddes = new Metadata(serialized);
@@ -126,7 +126,7 @@ public class MetadataTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("tranNOTEXISTENTsient", "B-accessKey", "B-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
         
-        md = new Metadata(ts, hashlist, size, keylist, replicas, cryptoKey);
+        md = new Metadata(ts, hash, hashlist, size, keylist, replicas, cryptoKey);
 
         try {
             serialized = md.serialize();
@@ -138,7 +138,7 @@ public class MetadataTest extends HybrisAbstractTest {
         mddes = new Metadata(serialized);
         assertNotEquals(md, mddes);
         for (byte[] alfa : hashlist)
-        	assertArrayEquals(alfa, mddes.getHash().get(hashlist.indexOf(alfa)));
+        	assertArrayEquals(alfa, mddes.getHashlist().get(hashlist.indexOf(alfa)));
         assertEquals(size, mddes.getSize());
         assertEquals(ts, mddes.getTs());
         assertEquals(2, mddes.getChunksLst().size());
