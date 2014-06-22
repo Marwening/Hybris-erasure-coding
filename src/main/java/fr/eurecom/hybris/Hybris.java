@@ -360,17 +360,18 @@ public class Hybris {
                             if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                                 this.cache.set(kvsKey, this.cacheExp, value);
 
-                          /*  if (md.getCryptoKey() != null)
+                            if (md.getCryptoKey() != null)
                                 try {
                                     logger.debug("Decrypting data for key {}", key);
                                     value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
                                 } catch (GeneralSecurityException | UnsupportedEncodingException e) {
                                     logger.error("Could not decrypt data", e);
                                     throw new HybrisException("Could not decrypt data", e);
-                                } */
+                                } 
                             if (Arrays.equals(md.getHashlist().get(i),Utils.getHash(value)))
                             	values.add(i,value);
-    //                        keepRetrieving = false;
+                            if (i==this.quorum)
+                            		keepRetrieving = false;
       //                      for (Future<byte[]> future : futuresArray)
         //                        future.cancel(true);
           //                  break;
@@ -409,9 +410,8 @@ public class Hybris {
         Metadata tombstone = Metadata.getTombstone(ts);
 
         if (!this.gcEnabled) {
-            String kvsKey = Utils.getKvsKey(keylist.get(0), md.getTs());
             for (Kvs kvStore : this.kvs.getKvsList()) {
-
+                String kvsKey = Utils.getKvsKey(keylist.get(this.kvs.getKvsList().indexOf(kvStore)), md.getTs());
                 if (!md.getChunksLst().contains(kvStore))
                     continue;
 
