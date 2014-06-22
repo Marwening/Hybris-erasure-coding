@@ -48,7 +48,7 @@ public class MetadataTest extends HybrisAbstractTest {
         this.random.nextBytes(hash);
         ArrayList<byte[]> hashlist= new ArrayList<>(Utils.DATACHUNKS+Utils.REDCHUNKS);
         for (byte[] alfa : hashlist)
-        	alfa = hash;
+        	alfa = new byte[Utils.HASH_LENGTH];
 //        byte[] hash = new byte[Utils.HASH_LENGTH];
         byte[] cryptoKey = new byte[Utils.CRYPTO_KEY_LENGTH];
         ArrayList<String> keylist = null;

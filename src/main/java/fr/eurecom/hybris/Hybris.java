@@ -180,7 +180,7 @@ public class Hybris {
                 this.cacheEnabled = false;
             }
 
-        this.quorum = t + 1;
+        this.quorum = Utils.DATACHUNKS + Utils.REDCHUNKS;
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
         this.gcEnabled = gcEnabled;
@@ -293,11 +293,12 @@ public class Hybris {
         try {
         	ArrayList<byte[]> chunkhashed = new ArrayList<byte []> ();
         	byte[] valhashed = new byte[20];
+        	valhashed = Utils.getHash(value);
         	for (String Sigma : Utils.ercode(value, key)) 
         		chunkhashed.add(Utils.getHash(Utils.keytovalue(Sigma)));        	;
             Metadata newMd = new Metadata(ts, valhashed, chunkhashed, value.length, Utils.ercode(value, key), savedChunksLst, cryptoKey);
             System.out.println("just created Metadata"+ newMd);
-            System.out.println("keylist is " +Utils.ercode(value, key));
+           // System.out.println("keylist is " +Utils.ercode(value, key));
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, keylist, savedChunksLst).start();
@@ -313,100 +314,15 @@ public class Hybris {
 
 
     /**
-     * Fetches the value associated with <key>.
-     * @param key
-     * @return a byte array containing the value associated with <key>.
-     * @throws HybrisException
-     * @throws IOException 
-     */
-    @SuppressWarnings("null")
-	public byte[] get(String key) throws HybrisException, IOException {   	
-     	
-    	//ArrayList<String> keylist=Utils.ercode(null, key);
-    	ArrayList<byte[]> values = null;
-        Metadata md = this.mds.tsRead(key, null);
-        ArrayList<String> keylist = md.getkeylist();
-       // System.out.println("there is the keylist "+ keylist);
-        if (md == null || md.isTombstone()) {
-            logger.warn("Could not find metadata associated with key {}.", key);
-            return null;
-        }
-        byte[] value = null;
-        String kvsKey = Utils.getKvsKey(key, md.getTs());
-        if (this.cacheEnabled) {
-            value = (byte[]) this.cache.get(kvsKey);
-             if (value != null && Arrays.equals(md.getHashlist().get(0), Utils.getHash(value))) {
-
-                if (md.getCryptoKey() != null)
-                    try {
-                        logger.debug("Decrypting data for key {}", key);
-                        value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
-                    } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                        logger.error("Could not decrypt data", e);
-                        throw new HybrisException("Could not decrypt data", e);
-                    }
-
-                logger.debug("Value of {} retrieved from cache", key);
-                return value;
-            }
-        }
-
-        List<Kvs> kvsSublst;
-		for (Kvs kvStore : kvsSublst = this.kvs.getKvsSortedByWriteLatency()) {
-					
-                 if (!md.getChunksLst().contains(kvStore))
-                continue;
- //keylist.get(kvsSublst.indexOf(kvStore))           
-                 try {
-                // TODO check filesize to prevent DOS
-                values.add(this.kvs.get(kvStore, keylist.get(kvsSublst.indexOf(kvStore))));
-                } catch (IOException e) {
-                 continue;
-             }
-
-            if (value != null) {
-              for (byte[] alfa: md.getHashlist())	
-                if (Arrays.equals(alfa, Utils.getHash(value))) {
-                    logger.info("Value of {} retrieved from kvStore {}", keylist.get(kvsSublst.indexOf(kvStore)), kvStore);
-                    if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
-                        this.cache.set(kvsKey, this.cacheExp, value);
-
-                    if (md.getCryptoKey() != null)
-                        try {
-                            logger.debug("Decrypting data for key {}", key);
-                            value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
-                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                            logger.error("Could not decrypt data", e);
-                            throw new HybrisException("Could not decrypt data", e);
-                        }
-                    values.add(value);
-                    int Sizy= md.getSize();
-					byte[] finval = Utils.dercode(values, keylist, key, Sizy);
-                    return finval;
-                } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
-                    continue;
-            } else
-                /* This could be due to:
-                 * a. Byzantine replicas
-                 * b. concurrent gc
-                 */
-                return this.parallelGet(key);
-        
-		}
-        return this.parallelGet(key);
-    }
-
-
-    /**
-     * Fail-safe parallel GET function.
-     * This function gets called whenever the main GET API fails
+     * parallel GET function.
+     * This function gets called to reach all the clouds and get a parallel values to decode.
      * due to Byzantine faults or concurrent GC.
      * @param key
      * @return a byte array containing the value associated with <key>.
      * @throws HybrisException
      * @throws IOException 
      */
-    private byte[] parallelGet(String key) throws HybrisException, IOException {
+    public byte[] get(String key) throws HybrisException, IOException {
 
         HybrisWatcher hwatcher = this.new HybrisWatcher();
         Metadata md = this.mds.tsRead(key, null, hwatcher);
@@ -421,12 +337,11 @@ public class Hybris {
         Future<byte[]> futureResult;
         byte[] value = null;
         boolean keepRetrieving = true;
-
         List<Kvs> kvsSublst = this.kvs.getKvsSortedByReadLatency();
         kvsSublst.retainAll(md.getChunksLst());
         Future<byte[]>[] futuresArray = new Future[kvsSublst.size()];
-        ArrayList<byte[]> values= null;
-    	ArrayList<String> keylist=Utils.ercode(null, key);
+        ArrayList<byte[]> values= new ArrayList<byte[]>();
+    	ArrayList<String> keylist=md.getkeylist();
         do {
         	for (Kvs kvStore : kvsSublst)
                  			futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, keylist.get(kvsSublst.indexOf(kvStore))));
@@ -436,31 +351,30 @@ public class Hybris {
                     if (hwatcher.isChanged()) {
                         for (Future<byte[]> future : futuresArray)
                             future.cancel(true);
-                        return this.parallelGet(key);
+                        return this.get(key);
                     }
 
                     futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
                     if (futureResult != null && (value = futureResult.get()) != null)
-                       for (byte[] alfa : md.getHashlist())
-                        if (Arrays.equals(alfa, Utils.getHash(value))) {
 
                             if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                                 this.cache.set(kvsKey, this.cacheExp, value);
 
-                            if (md.getCryptoKey() != null)
+                          /*  if (md.getCryptoKey() != null)
                                 try {
                                     logger.debug("Decrypting data for key {}", key);
                                     value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
                                 } catch (GeneralSecurityException | UnsupportedEncodingException e) {
                                     logger.error("Could not decrypt data", e);
                                     throw new HybrisException("Could not decrypt data", e);
-                                }
-
-                            keepRetrieving = false;
-                            for (Future<byte[]> future : futuresArray)
-                                future.cancel(true);
-                            break;
-                        }
+                                } */
+                            if (Arrays.equals(md.getHashlist().get(i),Utils.getHash(value)))
+                            	values.add(i,value);
+    //                        keepRetrieving = false;
+      //                      for (Future<byte[]> future : futuresArray)
+        //                        future.cancel(true);
+          //                  break;
+                        
 
                 } catch (InterruptedException | ExecutionException e) {
                     logger.warn("Exception on write task execution", e);
@@ -468,7 +382,9 @@ public class Hybris {
 
         } while (keepRetrieving);
         executor.shutdown();
-
+        
+        int Sizy = md.getSize();
+		value = Utils.dercode(values, keylist, kvsKey, Sizy );
         return value;
     }
 
@@ -481,17 +397,19 @@ public class Hybris {
     public void delete(String key) throws HybrisException {
 
         Stat stat = new Stat();
+        ArrayList<String> keylist = new ArrayList<String>();
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null) {
             logger.debug("Could not find the metadata associated with key {}.", key);
             return;
         }
         Timestamp ts = md.getTs();
+        keylist= md.getkeylist();
         ts.inc( this.clientId );
         Metadata tombstone = Metadata.getTombstone(ts);
 
         if (!this.gcEnabled) {
-            String kvsKey = Utils.getKvsKey(key, md.getTs());
+            String kvsKey = Utils.getKvsKey(keylist.get(0), md.getTs());
             for (Kvs kvStore : this.kvs.getKvsList()) {
 
                 if (!md.getChunksLst().contains(kvStore))

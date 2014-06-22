@@ -247,7 +247,6 @@ public class Utils {
  * @return ArrayList<String> keylist
  * @throws IOException 
  */
-	@SuppressWarnings("resource")
 	public static ArrayList<String> ercode(byte[] value, String key) throws IOException {
 
 		Encoder encoder = new Encoder(DATACHUNKS,REDCHUNKS, WORDS_LENGTH);
