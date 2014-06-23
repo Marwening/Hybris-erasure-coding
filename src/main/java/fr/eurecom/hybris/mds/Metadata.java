@@ -269,12 +269,11 @@ public class Metadata implements KryoSerializable {
             out.writeShort(-2);         // null replicas array
     }
 
-    @SuppressWarnings("unused")
 	public void read(Kryo kryo, Input in) {
         this.ts = (Timestamp) kryo.readClassAndObject(in);
         this.hashlist = new ArrayList<byte[]>(Utils.DATACHUNKS+Utils.REDCHUNKS);
-        for (byte[] alfa : this.hashlist)
-        	alfa = in.readBytes(Utils.HASH_LENGTH);
+        for (int i=0; i< this.hashlist.size(); i++)
+            this.hashlist.add(i, in.readBytes(Utils.HASH_LENGTH));
         byte[] ba = new byte[Utils.HASH_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
         for (byte[] alfa : this.hashlist)
